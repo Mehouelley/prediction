@@ -74,5 +74,5 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
+            ghcr.io/mehouelley/prediction:latest
+            ghcr.io/mehouelley/prediction:${{ github.sha }}
