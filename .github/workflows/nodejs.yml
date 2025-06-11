@@ -57,9 +57,11 @@ jobs:
         env:
           NODE_ENV: test
         run: npm test
+      - name: Remove flat ESLint config
+        run: rm -f eslint.config.js
       - name: Lint code
-        run: |-
-          npx eslint . --ext .js --config .eslintrc.js
+        run: |
+          npx eslint . --ext .js
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v2
         with:
