@@ -9,6 +9,15 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      DB_USER: root
+      DB_PASSWORD: password
+      DB_NAME: prediction_db
+      DB_HOST: localhost
+      DB_USER_TEST: root
+      DB_PASSWORD_TEST: password
+      DB_NAME_TEST: prediction_db_test
+      DB_HOST_TEST: localhost
 
     services:
       mysql:
@@ -39,6 +48,9 @@ jobs:
             echo "Waiting for MySQL..."
             sleep 2
           done
+      - name: Create test database
+        run: |
+          mysql -h localhost -u root -ppassword -e "CREATE DATABASE IF NOT EXISTS $DB_NAME_TEST;"
       - name: Run migrations
         run: npx sequelize db:migrate
       - name: Run tests
