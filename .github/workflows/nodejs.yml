@@ -59,7 +59,7 @@ jobs:
         run: npm test
       - name: Lint code
         run: |-
-          npx eslint . --ext .js
+          npx eslint . --ext .js --config .eslintrc.js
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v2
         with:
