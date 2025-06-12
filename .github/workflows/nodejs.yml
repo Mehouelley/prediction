@@ -68,11 +68,14 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Prepare Docker image name
+        run: |
+          echo "REPO_LOWER=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
         with:
           context: .
           push: true
           tags: |
-            ghcr.io/mehouelley/prediction:latest
-            ghcr.io/mehouelley/prediction:${{ github.sha }}
+            ghcr.io/${{ env.REPO_LOWER }}:latest
+            ghcr.io/${{ env.REPO_LOWER }}:${{ github.sha }}
