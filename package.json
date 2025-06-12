@@ -8,7 +8,7 @@
     "migrate": "sequelize db:migrate",
     "seed": "sequelize db:seed:all",
     "test": "jest --runInBand",
-    "e2e": "start-server-and-test start http://localhost:3000 \"newman run tests/postman_collection.json -e tests/postman_environment.json --bail --disable-unicode\""
+    "e2e": "npm run migrate && start-server-and-test start http://localhost:3000 \"newman run tests/postman_collection.json -e tests/postman_environment.json --bail --disable-unicode\""
   },
   "keywords": [],
   "author": "",

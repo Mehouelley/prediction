@@ -45,12 +45,12 @@ app.get('/', (req, res) => {
 
 // Routes publiques d’authentification
 app.use('/auth', authRoutes);
-// Routes protégées avec API key + JWT
-app.use('/zones', apiKeyMiddleware, auth, riskZoneRoutes);
-app.use('/weather', apiKeyMiddleware, auth, weatherRoutes);
-app.use('/predict', apiKeyMiddleware, auth, predictRoutes);
-app.use('/subscriptions', apiKeyMiddleware, auth, subscriptionRoutes);
-app.use('/train', apiKeyMiddleware, auth, trainRoutes);
+// Routes protégées avec JWT puis API Key
+app.use('/zones', auth, apiKeyMiddleware, riskZoneRoutes);
+app.use('/weather', auth, apiKeyMiddleware, weatherRoutes);
+app.use('/predict', auth, apiKeyMiddleware, predictRoutes);
+app.use('/subscriptions', auth, apiKeyMiddleware, subscriptionRoutes);
+app.use('/train', auth, apiKeyMiddleware, trainRoutes);
 
 // Middleware global de gestion des erreurs
 app.use(errorHandler);
