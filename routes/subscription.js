@@ -1,40 +1,19 @@
 const express = require('express');
-const { body, param, validationResult } = require('express-validator');
+const Joi = require('joi');
+const { validateBody } = require('../middleware/validate');
 const router = express.Router();
-const { Subscription, RiskZone, User } = require('../models'); // Ajout de User
+const { Subscription, RiskZone, User } = require('../models');
 const authMiddleware = require('../middleware/auth');
 const checkRole = require('../middleware/checkRole');
 
-// Validation middleware
-const validateSubscription = [
-  body('email').optional({ checkFalsy: true }).isEmail().withMessage('Email invalide'),
-  body('phoneNumber').optional({ checkFalsy: true }).isMobilePhone().withMessage('Numéro de téléphone invalide'),
-  body('zoneId').optional().isInt({ gt: 0 }).withMessage('zoneId doit être un entier positif'),
-  // S'assurer qu'au moins un moyen de contact est fourni
-  body().custom((value, { req }) => {
-    if (!req.body.email && !req.body.phoneNumber) {
-      throw new Error('Au moins un email ou un numéro de téléphone doit être fourni.');
-    }
-    return true;
-  }),
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-    next();
-  }
-];
-
-// Middleware de validation de l'ID
-const validateId = [
-  param('id').isInt().withMessage('ID invalide'),
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-    next();
-  }
-];
+// Joi schema pour Subscription
+const subscriptionSchema = Joi.object({
+  email: Joi.string().email().allow(null, ''),
+  phoneNumber: Joi.string().pattern(/^\+?[0-9]{7,15}$/).allow(null, ''),
+  zoneId: Joi.number().integer().positive().required()
+}).xor('email','phoneNumber').messages({
+  'object.missing': 'Au moins un email ou un numéro de téléphone doit être fourni.'
+});
 
 /**
  * @swagger
@@ -141,7 +120,7 @@ router.get('/my', authMiddleware, async (req, res, next) => {
  *       404:
  *         description: Abonnement non trouvé
  */
-router.get('/:id', authMiddleware, validateId, async (req, res, next) => {
+router.get('/:id', authMiddleware, async (req, res, next) => {
   try {
     const sub = await Subscription.findByPk(req.params.id, { 
       include: [ { model: RiskZone, as: 'zone' } ]
@@ -198,7 +177,7 @@ router.get('/:id', authMiddleware, validateId, async (req, res, next) => {
  *       401:
  *         description: Token manquant ou invalide
  */
-router.post('/', authMiddleware, validateSubscription, async (req, res, next) => {
+router.post('/', authMiddleware, validateBody(subscriptionSchema), async (req, res, next) => {
   try {
     const { email, phoneNumber, zoneId } = req.body;
     const userId = req.user.id; // ID de l'utilisateur authentifié
@@ -286,7 +265,7 @@ router.post('/', authMiddleware, validateSubscription, async (req, res, next) =>
  *       404:
  *         description: Abonnement non trouvé
  */
-router.put('/:id', authMiddleware, validateId, validateSubscription, async (req, res, next) => {
+router.put('/:id', authMiddleware, validateBody(subscriptionSchema), async (req, res, next) => {
   try {
     const sub = await Subscription.findByPk(req.params.id);
     if (!sub) return res.status(404).json({ error: 'Abonnement non trouvé' });
@@ -345,7 +324,7 @@ router.put('/:id', authMiddleware, validateId, validateSubscription, async (req,
  *       404:
  *         description: Abonnement non trouvé
  */
-router.delete('/:id', authMiddleware, validateId, async (req, res, next) => {
+router.delete('/:id', authMiddleware, async (req, res, next) => {
   try {
     const sub = await Subscription.findByPk(req.params.id);
     if (!sub) return res.status(404).json({ error: 'Abonnement non trouvé' });

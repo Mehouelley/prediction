@@ -16,12 +16,12 @@ if (!isTest) {
     EMAIL_PORT: Joi.number().required(),
     EMAIL_USER: Joi.string().required(),
     EMAIL_PASS: Joi.string().required(),
-    TWILIO_ACCOUNT_SID: Joi.string().pattern(/^AC/).required(),
-    TWILIO_AUTH_TOKEN: Joi.string().required(),
-    TWILIO_FROM_NUMBER: Joi.string().required(),
+    TWILIO_ACCOUNT_SID: Joi.string().pattern(/^AC/).optional(),
+    TWILIO_AUTH_TOKEN: Joi.string().optional(),
+    TWILIO_FROM_NUMBER: Joi.string().optional(),
     NOTIFICATION_THRESHOLD: Joi.number().min(0).max(1).default(0.7),
     API_KEY: Joi.string().required().description('Clé API pour authentification via header x-api-key'),
-    JWT_SECRET: Joi.string().required().description('Secret pour signature des JWT'),
+    JWT_SECRET: Joi.string().default('test-secret').description('Secret pour signature des JWT'),
     TOKEN_EXPIRATION: Joi.string().default('1h').description('Durée de validité du JWT')
   }).unknown();
 

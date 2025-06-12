@@ -15,9 +15,11 @@ require('./config/validateEnv');  // Valide process.env avec Joi
 const auth = require('./middleware/auth');
 const trainRoutes = require('./routes/train');
 const authRoutes = require('./routes/auth');
+const errorHandler = require('./middleware/errorHandler');
+const apiKeyMiddleware = require('./middleware/apiKey');
 
 const app = express();
-
+app.use(express.urlencoded({ extended: true }));
 // Middlewares de sécurité
 app.use(helmet());
 app.use(cors({
@@ -43,22 +45,15 @@ app.get('/', (req, res) => {
 
 // Routes publiques d’authentification
 app.use('/auth', authRoutes);
+// Routes protégées avec API key + JWT
+app.use('/zones', apiKeyMiddleware, auth, riskZoneRoutes);
+app.use('/weather', apiKeyMiddleware, auth, weatherRoutes);
+app.use('/predict', apiKeyMiddleware, auth, predictRoutes);
+app.use('/subscriptions', apiKeyMiddleware, auth, subscriptionRoutes);
+app.use('/train', apiKeyMiddleware, auth, trainRoutes);
 
-// Middleware d'authentification pour les routes protégées
-app.use(auth);
-
-// Routes protégées
-app.use('/zones', riskZoneRoutes);
-app.use('/weather', weatherRoutes);
-app.use('/predict', predictRoutes);
-app.use('/subscriptions', subscriptionRoutes);
-app.use('/train', trainRoutes);
-
-// Middleware de gestion des erreurs
-app.use((err, req, res, next) => {
-  logger.error('Unhandled Error:', err);
-  res.status(500).json({ error: 'Erreur interne du serveur' });
-});
+// Middleware global de gestion des erreurs
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
 

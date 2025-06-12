@@ -18,6 +18,12 @@ const options = {
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT'
+        },
+        apiKeyAuth: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'x-api-key',
+          description: 'Clé API fournie à l’utilisateur'
         }
       },
       schemas: {
@@ -81,7 +87,15 @@ const options = {
           type: 'object',
           properties: {
             token: { type: 'string' },
-            user: { type: 'object', properties: { id: { type: 'integer' }, email: { type: 'string' }, role: { type: 'string' } } }
+            user: {
+              type: 'object',
+              properties: {
+                id: { type: 'integer' },
+                email: { type: 'string' },
+                role: { type: 'string' },
+                apiKey: { type: 'string' }
+              }
+            }
           }
         },
         Error: {
@@ -91,7 +105,11 @@ const options = {
           }
         }
       }
-    }
+    },
+    security: [
+      { bearerAuth: [] },
+      { apiKeyAuth: [] }
+    ]
   },
   apis: ['./routes/*.js']
 };

@@ -17,7 +17,7 @@ async function login(email, password) {
   if (!user) throw new Error('Utilisateur non trouvé');
   const match = await bcrypt.compare(password, user.password);
   if (!match) throw new Error('Mot de passe invalide');
-  const payload = { id: user.id, email: user.email, role: user.role };
+  const payload = { id: user.id, email: user.email, role: user.role, apiKey: user.apiKey };
   // Fallback secret for tests
   const secret = process.env.JWT_SECRET || 'test-secret';
   const expiresIn = process.env.TOKEN_EXPIRATION || '1h';

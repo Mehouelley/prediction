@@ -1,0 +1,19 @@
+name: Postman Collection CI
+
+on:
+  workflow_dispatch:
+jobs:
+  newman-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+      - run: npm install
+      - name: Run Newman tests
+        run: |
+          npx newman run tests/postman_collection.json \
+            -e tests/postman_environment.json \
+            --bail --disable-unicode

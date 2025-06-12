@@ -1,0 +1,132 @@
+{
+  "info": {
+    "_postman_id": "12345678-abcd-ef00-1234-56789abcdef0",
+    "name": "API Prediction Flow",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "token", "value": "" },
+    { "key": "apiKey", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Register",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth","register"] },
+        "body": { "mode": "raw", "raw": "{ \"email\": \"user@postman.com\", \"password\": \"Passw0rd!\" }" }
+      },
+      "response": []
+    },
+    {
+      "name": "Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var json = pm.response.json();",
+              "pm.environment.set('token', json.token);",
+              "pm.environment.set('apiKey', json.user.apiKey);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth","login"] },
+        "body": { "mode": "raw", "raw": "{ \"email\": \"user@postman.com\", \"password\": \"Passw0rd!\" }" }
+      },
+      "response": []
+    },
+    {
+      "name": "Create Risk Zone",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "x-api-key", "value": "{{apiKey}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": { "raw": "{{baseUrl}}/zones", "host": ["{{baseUrl}}"], "path": ["zones"] },
+        "body": { "mode": "raw", "raw": "{ \"name\": \"Zone1\", \"latitude\": 10, \"longitude\": 20, \"riskLevel\": 3 }" }
+      },
+      "response": []
+    },
+    {
+      "name": "List Risk Zones",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "x-api-key", "value": "{{apiKey}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/zones", "host": ["{{baseUrl}}"], "path": ["zones"] }
+      }
+    },
+    {
+      "name": "Add Weather Data",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "x-api-key", "value": "{{apiKey}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": { "raw": "{{baseUrl}}/weather", "host": ["{{baseUrl}}"], "path": ["weather"] },
+        "body": { "mode": "raw", "raw": "{ \"zoneId\": 1, \"timestamp\": \"2025-06-12T12:00:00Z\", \"temperature\": 25, \"humidity\": 60, \"windSpeed\": 4 }" }
+      }
+    },
+    {
+      "name": "Train Model",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "x-api-key", "value": "{{apiKey}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/train", "host": ["{{baseUrl}}"], "path": ["train"] }
+      }
+    },
+    {
+      "name": "Get Predictions",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "x-api-key", "value": "{{apiKey}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/predict", "host": ["{{baseUrl}}"], "path": ["predict"] }
+      }
+    },
+    {
+      "name": "Subscribe Alerts",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "x-api-key", "value": "{{apiKey}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": { "raw": "{{baseUrl}}/subscriptions", "host": ["{{baseUrl}}"], "path": ["subscriptions"] },
+        "body": { "mode": "raw", "raw": "{ \"email\": \"notify@test.com\", \"phoneNumber\": \"+33123456789\", \"zoneId\": 1 }" }
+      }
+    },
+    {
+      "name": "List Subscriptions",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "x-api-key", "value": "{{apiKey}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/subscriptions", "host": ["{{baseUrl}}"], "path": ["subscriptions"] }
+      }
+    }
+  ]
+}

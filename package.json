@@ -7,7 +7,8 @@
     "dev": "concurrently \"nodemon index.js\" \"cd client && npm run dev\"",
     "migrate": "sequelize db:migrate",
     "seed": "sequelize db:seed:all",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand",
+    "e2e": "start-server-and-test start http://localhost:3000 \"newman run tests/postman_collection.json -e tests/postman_environment.json --bail --disable-unicode\""
   },
   "keywords": [],
   "author": "",
@@ -33,14 +34,17 @@
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "twilio": "^5.7.0",
+    "uuid": "^11.1.0",
     "winston": "^3.17.0"
   },
   "devDependencies": {
     "eslint": "^8.50.0",
     "jest": "^30.0.0",
+    "newman": "^6.2.1",
     "nodemon": "^3.1.10",
     "sequelize-cli": "^6.6.0",
     "sqlite3": "^5.1.7",
+    "start-server-and-test": "^2.0.12",
     "supertest": "^7.1.1"
   }
 }

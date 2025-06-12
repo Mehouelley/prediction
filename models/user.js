@@ -21,6 +21,12 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM('user', 'admin'),
       allowNull: false,
       defaultValue: 'user'
+    },
+    apiKey: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      unique: true,
+      defaultValue: DataTypes.UUIDV4
     }
   }, {
     tableName: 'users'

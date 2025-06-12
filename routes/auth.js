@@ -1,10 +1,23 @@
 const express = require('express');
-const { check, validationResult } = require('express-validator');
+const Joi = require('joi');
+const { validateBody } = require('../middleware/validate');
 const jwt = require('jsonwebtoken');
 const authService = require('../services/authService');
+const { User } = require('../models');
 
 const router = express.Router();
 const isTest = process.env.NODE_ENV === 'test';
+
+// Joi Schemas
+const registerSchema = Joi.object({
+  email: Joi.string().email().required(),
+  password: Joi.string().min(6).required(),
+  role: Joi.string().valid('user','admin')
+});
+const loginSchema = Joi.object({
+  email: Joi.string().email().required(),
+  password: Joi.string().required()
+});
 
 /**
  * @swagger
@@ -33,32 +46,20 @@ const isTest = process.env.NODE_ENV === 'test';
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-const registerValidators = isTest ? [] : [
-  check('email').isEmail(),
-  check('password').isLength({ min: 6 }),
-  check('role').optional().isIn(['user', 'admin'])
-];
-router.post(
-  '/register',
-  registerValidators,
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ error: errors.array() });
-    }
-    const { email, password, role } = req.body;
-    try {
-      const user = await authService.register(email, password, role);
-      // Générer directement le token
-      const secret = process.env.JWT_SECRET || 'test-secret';
-      const expiresIn = process.env.TOKEN_EXPIRATION || '1h';
-      const payload = { id: user.id, email: user.email, role: user.role };
-      const token = jwt.sign(payload, secret, { expiresIn });
-      return res.status(201).json({ token, user: payload });
-    } catch (err) {
-      return res.status(400).json({ error: err.message });
-    }
-  }
+router.post('/register', validateBody(registerSchema), async (req, res) => {
+     const { email, password, role } = req.body;
+     try {
+       const user = await authService.register(email, password, role);
+       // Générer directement le token
+       const secret = process.env.JWT_SECRET || 'test-secret';
+       const expiresIn = process.env.TOKEN_EXPIRATION || '1h';
+       const payload = { id: user.id, email: user.email, role: user.role, apiKey: user.apiKey };
+       const token = jwt.sign(payload, secret, { expiresIn });
+       return res.status(201).json({ token, user: payload });
+     } catch (err) {
+       return res.status(400).json({ error: err.message });
+     }
+   }
 );
 
 /**
@@ -88,29 +89,20 @@ router.post(
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-const loginValidators = isTest ? [] : [
-  check('email').isEmail(),
-  check('password').exists()
-];
-router.post(
-  '/login',
-  loginValidators,
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ error: errors.array() });
-    }
-    const { email, password } = req.body;
-    try {
-      // Authentifier et générer le token
-      const token = await authService.login(email, password);
-      // Décoder le payload avec le fallback secret
-      const payload = authService.verifyToken(token);
-      return res.json({ token, user: { id: payload.id, email: payload.email, role: payload.role } });
-    } catch (err) {
-      return res.status(401).json({ error: err.message });
-    }
-  }
+router.post('/login', validateBody(loginSchema), async (req, res) => {
+     const { email, password } = req.body;
+     try {
+       // Authentifier et générer le token
+       const token = await authService.login(email, password);
+       // Décoder le payload avec le fallback secret
+       const payload = authService.verifyToken(token);
+       // Récupérer la clé API depuis la base
+       const userRecord = await User.findByPk(payload.id);
+       return res.json({ token, user: { id: payload.id, email: payload.email, role: payload.role, apiKey: userRecord.apiKey } });
+     } catch (err) {
+       return res.status(401).json({ error: err.message });
+     }
+   }
 );
 
 module.exports = router;

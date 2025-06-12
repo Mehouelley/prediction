@@ -1,10 +1,20 @@
 const express = require('express');
 const router = express.Router();
 const { WeatherData, RiskZone } = require('../models');
-const { body, param, validationResult } = require('express-validator');
+const Joi = require('joi');
+const { validateBody } = require('../middleware/validate');
 // Middlewares
 const authMiddleware = require('../middleware/auth');
 const checkRole = require('../middleware/checkRole');
+
+// Joi schema pour WeatherData
+const weatherSchema = Joi.object({
+  zoneId: Joi.number().integer().positive().required(),
+  timestamp: Joi.date().iso().required(),
+  temperature: Joi.number().optional(),
+  humidity: Joi.number().optional(),
+  windSpeed: Joi.number().optional()
+});
 
 /**
  * @swagger
@@ -31,44 +41,12 @@ const checkRole = require('../middleware/checkRole');
  *               items:
  *                 $ref: '#/components/schemas/WeatherData'
  */
-// Middleware de validation
-const validateWeather = [
-  body('zoneId').isInt({ gt: 0 }).withMessage('zoneId doit être un entier positif'),
-  body('timestamp').isISO8601().withMessage('timestamp invalide'),
-  body('temperature').optional().isFloat().withMessage('temperature invalide'),
-  body('humidity').optional().isFloat().withMessage('humidity invalide'),
-  body('windSpeed').optional().isFloat().withMessage('windSpeed invalide'),
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-    next();
-  }
-];
-
-/**
- * @swagger
- * /weather:
- *   get:
- *     summary: Récupère tous les relevés météo
- *     tags: [WeatherData]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Liste des relevés
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/WeatherData'
- */
-router.get('/', authMiddleware, checkRole(['user', 'admin']), async (req, res) => {
+router.get('/', authMiddleware, checkRole(['user', 'admin']), async (req, res, next) => {
   try {
     const data = await WeatherData.findAll({ include: [RiskZone] });
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: 'Erreur lors de la récupération des données météo' });
+    next(err);
   }
 });
 
@@ -95,15 +73,17 @@ router.get('/', authMiddleware, checkRole(['user', 'admin']), async (req, res) =
  *               items:
  *                 $ref: '#/components/schemas/WeatherData'
  */
-router.get('/zone/:zoneId', authMiddleware, checkRole(['user', 'admin']), async (req, res) => {
+router.get('/zone/:zoneId', authMiddleware, checkRole(['user', 'admin']), async (req, res, next) => {
+  const zoneId = parseInt(req.params.zoneId, 10);
+  if (isNaN(zoneId) || zoneId <= 0) return next({ status: 400, message: 'zoneId invalide' });
   try {
     const entries = await WeatherData.findAll({
-      where: { zoneId: req.params.zoneId },
+      where: { zoneId },
       order: [['timestamp', 'DESC']]
     });
     res.json(entries);
   } catch (err) {
-    res.status(500).json({ error: 'Erreur lors de la récupération des données pour la zone' });
+    next(err);
   }
 });
 
@@ -132,13 +112,15 @@ router.get('/zone/:zoneId', authMiddleware, checkRole(['user', 'admin']), async 
  *       404:
  *         description: Relevé non trouvé
  */
-router.get('/:id', authMiddleware, checkRole(['user', 'admin']), async (req, res) => {
+router.get('/:id', authMiddleware, checkRole(['user', 'admin']), async (req, res, next) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id) || id <= 0) return next({ status: 400, message: 'ID invalide' });
   try {
-    const entry = await WeatherData.findByPk(req.params.id, { include: [RiskZone] });
+    const entry = await WeatherData.findByPk(id, { include: [RiskZone] });
     if (entry) res.json(entry);
-    else res.status(404).json({ error: 'Donnée météo non trouvée' });
+    else next({ status: 404, message: 'Donnée météo non trouvée' });
   } catch (err) {
-    res.status(500).json({ error: 'Erreur lors de la récupération de la donnée' });
+    next(err);
   }
 });
 
@@ -170,13 +152,12 @@ router.get('/:id', authMiddleware, checkRole(['user', 'admin']), async (req, res
  *       403:
  *         description: Accès interdit (rôle insuffisant)
  */
-router.post('/', authMiddleware, checkRole('admin'), validateWeather, async (req, res) => {
+router.post('/', authMiddleware, checkRole('admin'), validateBody(weatherSchema), async (req, res, next) => {
   try {
-    const { zoneId, timestamp, temperature, humidity, windSpeed } = req.body;
-    const newEntry = await WeatherData.create({ zoneId, timestamp, temperature, humidity, windSpeed });
+    const newEntry = await WeatherData.create(req.body);
     res.status(201).json(newEntry);
   } catch (err) {
-    res.status(400).json({ error: 'Erreur lors de la création de la donnée météo' });
+    next(err);
   }
 });
 
@@ -213,17 +194,17 @@ router.post('/', authMiddleware, checkRole('admin'), validateWeather, async (req
  *       404:
  *         description: Relevé non trouvé
  */
-router.put('/:id', authMiddleware, checkRole('admin'), validateWeather, async (req, res) => {
+router.put('/:id', authMiddleware, checkRole('admin'), validateBody(weatherSchema), async (req, res, next) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id) || id <= 0) return next({ status: 400, message: 'ID invalide' });
   try {
-    const { zoneId, timestamp, temperature, humidity, windSpeed } = req.body;
-    const updatedEntry = await WeatherData.update(
-      { zoneId, timestamp, temperature, humidity, windSpeed },
-      { where: { id: req.params.id } }
-    );
-    if (updatedEntry[0] !== 0) res.json({ message: 'Donnée météo mise à jour' });
-    else res.status(404).json({ error: 'Donnée météo non trouvée' });
+    const [updated] = await WeatherData.update(req.body, { where: { id } });
+    if (updated) {
+      const updatedEntry = await WeatherData.findByPk(id);
+      res.json(updatedEntry);
+    } else next({ status: 404, message: 'Donnée météo non trouvée' });
   } catch (err) {
-    res.status(400).json({ error: 'Erreur lors de la mise à jour de la donnée météo' });
+    next(err);
   }
 });
 
@@ -252,13 +233,15 @@ router.put('/:id', authMiddleware, checkRole('admin'), validateWeather, async (r
  *       404:
  *         description: Relevé non trouvé
  */
-router.delete('/:id', authMiddleware, checkRole('admin'), async (req, res) => {
+router.delete('/:id', authMiddleware, checkRole('admin'), async (req, res, next) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id) || id <= 0) return next({ status: 400, message: 'ID invalide' });
   try {
-    const deleted = await WeatherData.destroy({ where: { id: req.params.id } });
-    if (deleted) res.json({ message: 'Donnée supprimée' });
-    else res.status(404).json({ error: 'Donnée météo non trouvée' });
+    const deleted = await WeatherData.destroy({ where: { id } });
+    if (deleted) res.json({ message: 'Donnée météo supprimée' });
+    else next({ status: 404, message: 'Donnée météo non trouvée' });
   } catch (err) {
-    res.status(500).json({ error: 'Erreur lors de la suppression de la donnée' });
+    next(err);
   }
 });
 

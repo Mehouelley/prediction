@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { predictRisk } = require('../services/predictService');
-const { param, validationResult } = require('express-validator');
+// validation via parseInt et Joi if needed
 const authMiddleware = require('../middleware/auth');
 const checkRole = require('../middleware/checkRole');
 
@@ -34,23 +34,13 @@ const checkRole = require('../middleware/checkRole');
  *       403:
  *         description: Accès interdit (rôle insuffisant)
  */
-// Validation middleware pour :zoneId
-const validatePredict = [
-  param('zoneId').optional().isInt({ gt: 0 }).withMessage('zoneId doit être un entier positif'),
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-    next();
-  }
-];
-
 // Prédiction pour toutes les zones
-router.get('/', authMiddleware, checkRole(['user', 'admin']), async (req, res) => {
+router.get('/', authMiddleware, checkRole(['user', 'admin']), async (req, res, next) => {
   try {
     const predictions = await predictRisk();
     res.json(predictions);
   } catch (err) {
-    res.status(500).json({ error: 'Erreur lors de la prédiction' });
+    next(err);
   }
 });
 
@@ -84,16 +74,15 @@ router.get('/', authMiddleware, checkRole(['user', 'admin']), async (req, res) =
  *         description: Zone non trouvée
  */
 // Prédiction pour une zone spécifique
-router.get('/:zoneId', authMiddleware, checkRole(['user', 'admin']), validatePredict, async (req, res) => {
+router.get('/:zoneId', authMiddleware, checkRole(['user', 'admin']), async (req, res, next) => {
+  const zoneId = parseInt(req.params.zoneId, 10);
+  if (isNaN(zoneId) || zoneId <= 0) return next({ status: 400, message: 'zoneId invalide' });
   try {
-    const predictions = await predictRisk(req.params.zoneId);
-    if (predictions.length > 0) {
-      res.json(predictions[0]);
-    } else {
-      res.status(404).json({ error: 'Zone non trouvée pour la prédiction' });
-    }
+    const predictions = await predictRisk(zoneId);
+    if (predictions.length > 0) res.json(predictions[0]);
+    else next({ status: 404, message: 'Zone non trouvée pour la prédiction' });
   } catch (err) {
-    res.status(500).json({ error: 'Erreur lors de la prédiction de la zone' });
+    next(err);
   }
 });
 

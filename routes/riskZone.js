@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { RiskZone } = require('../models');
-const { body, param, validationResult } = require('express-validator');
+const Joi = require('joi');
+const { validateBody } = require('../middleware/validate');
 const authMiddleware = require('../middleware/auth');
 const checkRole = require('../middleware/checkRole');
 
@@ -13,17 +14,12 @@ const checkRole = require('../middleware/checkRole');
  */
 
 // Middleware de validation
-const validateZone = [
-  body('name').notEmpty().withMessage('Le nom est requis'),
-  body('latitude').isFloat({ min: -90, max: 90 }).withMessage('Latitude invalide'),
-  body('longitude').isFloat({ min: -180, max: 180 }).withMessage('Longitude invalide'),
-  body('riskLevel').optional().isInt({ min: 0 }).withMessage('riskLevel doit être un entier positif'),
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-    next();
-  }
-];
+const zoneSchema = Joi.object({
+  name: Joi.string().required(),
+  latitude: Joi.number().min(-90).max(90).required(),
+  longitude: Joi.number().min(-180).max(180).required(),
+  riskLevel: Joi.number().integer().min(0).default(0)
+});
 
 /**
  * @swagger
@@ -42,12 +38,12 @@ const validateZone = [
  *                 $ref: '#/components/schemas/RiskZone'
  */
 // Récupérer toutes les zones à risque
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', authMiddleware, async (req, res, next) => {
   try {
     const zones = await RiskZone.findAll();
     res.json(zones);
   } catch (err) {
-    res.status(500).json({ error: 'Erreur lors de la récupération des zones' });
+    next(err);
   }
 });
 
@@ -75,13 +71,15 @@ router.get('/', authMiddleware, async (req, res) => {
  *         description: Zone non trouvée
  */
 // Récupérer une zone par ID
-router.get('/:id', authMiddleware, async (req, res) => {
+router.get('/:id', authMiddleware, async (req, res, next) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id) || id <= 0) return next({ status: 400, message: 'ID invalide' });
   try {
-    const zone = await RiskZone.findByPk(req.params.id);
+    const zone = await RiskZone.findByPk(id);
     if (zone) res.json(zone);
-    else res.status(404).json({ error: 'Zone non trouvée' });
+    else next({ status: 404, message: 'Zone non trouvée' });
   } catch (err) {
-    res.status(500).json({ error: 'Erreur lors de la récupération de la zone' });
+    next(err);
   }
 });
 
@@ -112,13 +110,12 @@ router.get('/:id', authMiddleware, async (req, res) => {
  *         description: Accès interdit (rôle insuffisant)
  */
 // Créer une nouvelle zone à risque
-router.post('/', authMiddleware, checkRole('admin'), validateZone, async (req, res) => {
+router.post('/', authMiddleware, checkRole('admin'), validateBody(zoneSchema), async (req, res, next) => {
   try {
-    const { name, latitude, longitude, riskLevel } = req.body;
-    const newZone = await RiskZone.create({ name, latitude, longitude, riskLevel });
+    const newZone = await RiskZone.create(req.body);
     res.status(201).json(newZone);
   } catch (err) {
-    res.status(400).json({ error: 'Erreur lors de la création de la zone' });
+    next(err);
   }
 });
 
@@ -158,21 +155,17 @@ router.post('/', authMiddleware, checkRole('admin'), validateZone, async (req, r
  *         description: Zone non trouvée
  */
 // Mettre à jour une zone à risque
-router.put('/:id', authMiddleware, checkRole('admin'), validateZone, async (req, res) => {
+router.put('/:id', authMiddleware, checkRole('admin'), validateBody(zoneSchema), async (req, res, next) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id) || id <= 0) return next({ status: 400, message: 'ID invalide' });
   try {
-    const { name, latitude, longitude, riskLevel } = req.body;
-    const [updated] = await RiskZone.update(
-      { name, latitude, longitude, riskLevel },
-      { where: { id: req.params.id } }
-    );
+    const [updated] = await RiskZone.update(req.body, { where: { id } });
     if (updated) {
-      const updatedZone = await RiskZone.findByPk(req.params.id);
+      const updatedZone = await RiskZone.findByPk(id);
       res.json(updatedZone);
-    } else {
-      res.status(404).json({ error: 'Zone non trouvée' });
-    }
+    } else next({ status: 404, message: 'Zone non trouvée' });
   } catch (err) {
-    res.status(400).json({ error: 'Erreur lors de la mise à jour de la zone' });
+    next(err);
   }
 });
 
@@ -200,13 +193,15 @@ router.put('/:id', authMiddleware, checkRole('admin'), validateZone, async (req,
  *         description: Zone non trouvée
  */
 // Supprimer une zone à risque
-router.delete('/:id', authMiddleware, checkRole('admin'), async (req, res) => {
+router.delete('/:id', authMiddleware, checkRole('admin'), async (req, res, next) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id) || id <= 0) return next({ status: 400, message: 'ID invalide' });
   try {
-    const deleted = await RiskZone.destroy({ where: { id: req.params.id } });
-    if (deleted) res.json({ message: 'Zone supprimée avec succès' });
-    else res.status(404).json({ error: 'Zone non trouvée' });
+    const deleted = await RiskZone.destroy({ where: { id } });
+    if (deleted) res.json({ message: 'Zone supprimée' });
+    else next({ status: 404, message: 'Zone non trouvée' });
   } catch (err) {
-    res.status(500).json({ error: 'Erreur lors de la suppression de la zone' });
+    next(err);
   }
 });
 
